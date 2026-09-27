@@ -1,0 +1,92 @@
+[
+  {
+    "round": 1,
+    "css_scores": [
+      0.9,
+      0.5037334088647947,
+      0.0,
+      0.7301837429729692
+    ],
+    "css_weights": [
+      0.42175957919683316,
+      0.236060433944669,
+      0.0,
+      0.3421799868584978
+    ],
+    "css_weighted_loss": 1.978212,
+    "effective_clients": 2.8515,
+    "checkpoint_dir": "./checkpoints/global_adapter\\round_0001"
+  },
+  {
+    "round": 2,
+    "css_scores": [
+      0.9,
+      0.5037589322181248,
+      0.0,
+      0.7415184968327238
+    ],
+    "css_weights": [
+      0.41952615909364877,
+      0.2348222777139863,
+      0.0,
+      0.34565156319236506
+    ],
+    "css_weighted_loss": 1.69325,
+    "effective_clients": 2.8521,
+    "checkpoint_dir": "./checkpoints/global_adapter\\round_0002"
+  },
+  {
+    "round": 3,
+    "css_scores": [
+      0.9,
+      0.515715148800645,
+      0.0,
+      0.7482512265073974
+    ],
+    "css_weights": [
+      0.41590295037365554,
+      0.23831939104286337,
+      0.0,
+      0.34577765858348114
+    ],
+    "css_weighted_loss": 1.942722,
+    "effective_clients": 2.8626,
+    "checkpoint_dir": "./checkpoints/global_adapter\\round_0003"
+  },
+  {
+    "round": 4,
+    "css_scores": [
+      0.9,
+      0.5074771310458597,
+      0.0,
+      0.7195604397518964
+    ],
+    "css_weights": [
+      0.4231236967114081,
+      0.23858399964958202,
+      0.0,
+      0.33829230363900986
+    ],
+    "css_weighted_loss": 1.942832,
+    "effective_clients": 2.8539,
+    "checkpoint_dir": "./checkpoints/global_adapter\\round_0004"
+  },
+  {
+    "round": 5,
+    "css_scores": [
+      0.9,
+      0.5180755224034336,
+      0.0,
+      0.7594287074654981
+    ],
+    "css_weights": [
+      0.41331722237534885,
+      0.23792170655604997,
+      0.0,
+      0.3487610710686011
+    ],
+    "css_weighted_loss": 1.857104,
+    "effective_clients": 2.8647,
+    "checkpoint_dir": "./checkpoints/global_adapter\\round_0005"
+  }
+]
