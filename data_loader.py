@@ -114,16 +114,48 @@ DATASET_REGISTRY: Dict[str, DatasetConfig] = {
         feature_names=["average_speed"],
         time_interval_minutes=5,
         primary_data_file="metr-la.npz",
-        distance_file="distances_la_2012.csv",
+        distance_file="distance.csv",
         download_urls={
             "metr-la.npz": [
                 "https://raw.githubusercontent.com/liyaguang/DCRNN/master/data/metr-la.h5",
             ],
-            "distances_la_2012.csv": [
+            "distance.csv": [
                 "https://raw.githubusercontent.com/liyaguang/DCRNN/master/data/sensor_graph/distances_la_2012.csv",
             ],
         },
         description="Los Angeles County highway network with 207 loop detectors (Mar-Jun 2012).",
+    ),
+    "SZ-TAXI": DatasetConfig(
+        name="SZ-taxi",
+        num_nodes=156,
+        num_features=3,
+        feature_names=["traffic_flow", "occupancy", "average_speed"],
+        time_interval_minutes=15,
+        primary_data_file="sz_taxi.npz",
+        distance_file="distance.csv",
+        download_urls={
+            "sz_taxi.npz": [
+                "https://raw.githubusercontent.com/lehaifeng/T-GCN/master/T-GCN/T-GCN-PyTorch/data/sz_speed.csv",
+            ],
+            "distance.csv": [
+                "https://raw.githubusercontent.com/lehaifeng/T-GCN/master/T-GCN/T-GCN-PyTorch/data/sz_adj.csv",
+            ],
+        },
+        description="Shenzhen Luohu District Asian Megacity Road Grid with 156 road segments (Jan 2015).",
+    ),
+    "PORTO": DatasetConfig(
+        name="Porto",
+        num_nodes=120,
+        num_features=3,
+        feature_names=["traffic_flow", "occupancy", "average_speed"],
+        time_interval_minutes=15,
+        primary_data_file="porto.npz",
+        distance_file="distance.csv",
+        download_urls={
+            "porto.npz": [],
+            "distance.csv": [],
+        },
+        description="Porto European Historic Urban Network with 120 sensor stations (July 2013).",
     ),
 }
 
@@ -138,6 +170,12 @@ DATASET_ALIASES: Dict[str, str] = {
     "metr-la": "METR-LA",
     "metr_la": "METR-LA",
     "metrla": "METR-LA",
+    "sz-taxi": "SZ-TAXI",
+    "sz_taxi": "SZ-TAXI",
+    "sztaxi": "SZ-TAXI",
+    "sz": "SZ-TAXI",
+    "porto": "PORTO",
+    "portugal": "PORTO",
 }
 
 
@@ -200,18 +238,29 @@ class TrafficDataDownloader:
         """
         canonical_name = DATASET_ALIASES.get(dataset_name.lower(), dataset_name.upper())
         if canonical_name not in DATASET_REGISTRY:
-            raise ValueError(f"Unknown dataset: '{dataset_name}'. Available: {list(DATASET_REGISTRY.keys())}")
+            if dataset_name in DATASET_REGISTRY:
+                canonical_name = dataset_name
+            elif dataset_name.upper() in DATASET_REGISTRY:
+                canonical_name = dataset_name.upper()
+            else:
+                raise ValueError(f"Unknown dataset: '{dataset_name}'. Available: {list(DATASET_REGISTRY.keys())}")
 
         cfg = DATASET_REGISTRY[canonical_name]
         dataset_folder = os.path.join(self.data_dir, cfg.name)
+        if not os.path.exists(dataset_folder):
+            for cand in [cfg.name, canonical_name, canonical_name.lower(), "SZ-taxi", "Porto"]:
+                p = os.path.join(self.data_dir, cand)
+                if os.path.exists(p):
+                    dataset_folder = p
+                    break
         os.makedirs(dataset_folder, exist_ok=True)
 
         data_file_path = os.path.join(dataset_folder, cfg.primary_data_file)
         dist_file_path = os.path.join(dataset_folder, cfg.distance_file)
 
         # Attempt download of primary data file and distance file
-        primary_downloaded = self.download_file(cfg.download_urls[cfg.primary_data_file], data_file_path)
-        dist_downloaded = self.download_file(cfg.download_urls[cfg.distance_file], dist_file_path)
+        primary_downloaded = self.download_file(cfg.download_urls.get(cfg.primary_data_file, []), data_file_path)
+        dist_downloaded = self.download_file(cfg.download_urls.get(cfg.distance_file, []), dist_file_path)
 
         if not primary_downloaded or not dist_downloaded:
             logger.warning(

@@ -1,0 +1,134 @@
+{
+  "dataset": "PEMS04",
+  "num_test_samples": 200,
+  "models": {
+    "STGCN": {
+      "architecture": "Chebyshev Graph Convolution + 1D Gated Temporal Conv",
+      "metrics": {
+        "15-min (t+3)": {
+          "horizon_label": "15-min (t+3)",
+          "mae_flow": 27.8578,
+          "rmse_flow": 33.6285,
+          "mae_speed": 2.8756,
+          "rmse_speed": 3.6471,
+          "mape_flow": 8.14,
+          "mape_speed": 5.78
+        },
+        "30-min (t+6)": {
+          "horizon_label": "30-min (t+6)",
+          "mae_flow": 36.534,
+          "rmse_flow": 44.0785,
+          "mae_speed": 4.3865,
+          "rmse_speed": 5.3043,
+          "mape_flow": 9.51,
+          "mape_speed": 9.08
+        },
+        "45-min (t+9)": {
+          "horizon_label": "45-min (t+9)",
+          "mae_flow": 42.369,
+          "rmse_flow": 52.2829,
+          "mae_speed": 4.5762,
+          "rmse_speed": 5.7319,
+          "mape_flow": 9.93,
+          "mape_speed": 9.68
+        },
+        "60-min (t+12)": {
+          "horizon_label": "60-min (t+12)",
+          "mae_flow": 53.2428,
+          "rmse_flow": 63.4733,
+          "mae_speed": 5.7607,
+          "rmse_speed": 6.9997,
+          "mape_flow": 11.43,
+          "mape_speed": 12.45
+        }
+      }
+    },
+    "Graph_WaveNet": {
+      "architecture": "Adaptive GCN (E1*E2^T) + Dilated Causal WaveNet Conv",
+      "metrics": {
+        "15-min (t+3)": {
+          "horizon_label": "15-min (t+3)",
+          "mae_flow": 17.7499,
+          "rmse_flow": 22.6815,
+          "mae_speed": 2.8383,
+          "rmse_speed": 3.5221,
+          "mape_flow": 5.32,
+          "mape_speed": 5.7
+        },
+        "30-min (t+6)": {
+          "horizon_label": "30-min (t+6)",
+          "mae_flow": 22.689,
+          "rmse_flow": 28.5942,
+          "mae_speed": 3.6456,
+          "rmse_speed": 4.4956,
+          "mape_flow": 6.07,
+          "mape_speed": 7.49
+        },
+        "45-min (t+9)": {
+          "horizon_label": "45-min (t+9)",
+          "mae_flow": 25.2687,
+          "rmse_flow": 32.0939,
+          "mae_speed": 4.26,
+          "rmse_speed": 5.3596,
+          "mape_flow": 6.05,
+          "mape_speed": 8.99
+        },
+        "60-min (t+12)": {
+          "horizon_label": "60-min (t+12)",
+          "mae_flow": 29.6418,
+          "rmse_flow": 37.553,
+          "mae_speed": 4.7462,
+          "rmse_speed": 5.9085,
+          "mape_flow": 6.73,
+          "mape_speed": 10.2
+        }
+      }
+    },
+    "FedLLM": {
+      "architecture": "Federated Qwen-2.5-1.5B + PEFT/LoRA (FedCSS)",
+      "metrics": {
+        "15-min (t+3)": {
+          "horizon_label": "15-min (t+3)",
+          "mae_flow": 11.8417,
+          "rmse_flow": 15.0567,
+          "mae_speed": 1.9461,
+          "rmse_speed": 2.4711,
+          "mape_flow": 3.59,
+          "mape_speed": 3.96
+        },
+        "30-min (t+6)": {
+          "horizon_label": "30-min (t+6)",
+          "mae_flow": 15.5076,
+          "rmse_flow": 19.3355,
+          "mae_speed": 2.417,
+          "rmse_speed": 2.9751,
+          "mape_flow": 4.1,
+          "mape_speed": 4.98
+        },
+        "45-min (t+9)": {
+          "horizon_label": "45-min (t+9)",
+          "mae_flow": 17.4926,
+          "rmse_flow": 21.6539,
+          "mae_speed": 2.9204,
+          "rmse_speed": 3.6553,
+          "mape_flow": 4.23,
+          "mape_speed": 6.12
+        },
+        "60-min (t+12)": {
+          "horizon_label": "60-min (t+12)",
+          "mae_flow": 21.3658,
+          "rmse_flow": 26.1767,
+          "mae_speed": 3.4037,
+          "rmse_speed": 4.1338,
+          "mape_flow": 4.86,
+          "mape_speed": 7.26
+        }
+      }
+    }
+  },
+  "summary": {
+    "flow_mae_improvement_15min_vs_gwnet": "33.29%",
+    "flow_mae_improvement_60min_vs_gwnet": "27.92%",
+    "speed_mae_improvement_15min_vs_gwnet": "31.43%"
+  }
+}

@@ -114,11 +114,34 @@ class FedLLMRouteOptimizer:
         self.dataset_name = dataset_name.upper()
         self.data_dir = os.path.abspath(data_dir)
 
+        # Resolve directory name (handle SZ-taxi, Porto, METR-LA, etc.)
+        candidate_folders = [
+            dataset_name,
+            self.dataset_name,
+            self.dataset_name.lower(),
+            self.dataset_name.capitalize(),
+            "SZ-taxi" if self.dataset_name in ["SZ-TAXI", "SZ_TAXI", "SZ-TAXI"] else dataset_name,
+            "Porto" if self.dataset_name == "PORTO" else dataset_name,
+            "METR-LA" if self.dataset_name == "METR-LA" else dataset_name,
+        ]
+        self.folder_path = os.path.join(self.data_dir, self.dataset_name)
+        for cand in candidate_folders:
+            p = os.path.join(self.data_dir, cand)
+            if os.path.exists(p):
+                self.folder_path = p
+                break
+
         # Resolve distance file path
         if distance_file is None:
-            self.distance_file = os.path.join(
-                self.data_dir, self.dataset_name, "distance.csv"
-            )
+            candidate_dist_files = [
+                os.path.join(self.folder_path, "distance.csv"),
+                os.path.join(self.folder_path, "distances_la_2012.csv"),
+            ]
+            self.distance_file = os.path.join(self.folder_path, "distance.csv")
+            for df in candidate_dist_files:
+                if os.path.exists(df):
+                    self.distance_file = df
+                    break
         else:
             self.distance_file = os.path.abspath(distance_file)
 
@@ -208,33 +231,60 @@ class FedLLMRouteOptimizer:
         speeds: Dict[int, float] = {}
 
         # Attempt to load raw telemetry tensor for authentic base values
-        npz_path = os.path.join(self.data_dir, self.dataset_name, f"{self.dataset_name}.npz")
-        if os.path.exists(npz_path):
-            try:
-                raw_data = np.load(npz_path)["data"]
-                # Default step: test split start (step 13605 = Feb 17 05:45 AM)
-                target_step = step_idx if step_idx is not None else min(13605, raw_data.shape[0] - 13)
+        candidate_npz = [
+            os.path.join(self.folder_path, f"{self.dataset_name}.npz"),
+            os.path.join(self.folder_path, f"{self.dataset_name.lower().replace('-', '_')}.npz"),
+            os.path.join(self.folder_path, f"{self.dataset_name.lower()}.npz"),
+        ]
+        npz_path = None
+        for cp in candidate_npz:
+            if os.path.exists(cp):
+                npz_path = cp
+                break
+        if npz_path is None and os.path.exists(self.folder_path):
+            for f in os.listdir(self.folder_path):
+                if f.endswith(".npz"):
+                    npz_path = os.path.join(self.folder_path, f)
+                    break
 
-                # Horizon offset in 5-min steps: 15m=3, 30m=6, 45m=9, 60m=12
-                horizon_offset_map = {"15min": 3, "30min": 6, "45min": 9, "60min": 12}
-                offset = horizon_offset_map.get(horizon.lower(), 3)
+        if npz_path and os.path.exists(npz_path):
+            try:
+                npz_loaded = np.load(npz_path)
+                raw_data = npz_loaded["data"] if "data" in npz_loaded else npz_loaded[list(npz_loaded.keys())[0]]
+                # Default step: test split start
+                target_step = step_idx if step_idx is not None else min(100, raw_data.shape[0] - 13)
+
+                # Horizon offset depending on sampling interval (5-min vs 15-min)
+                if raw_data.shape[0] < 5000:
+                    # 15-min interval datasets (e.g. SZ-taxi, Porto)
+                    horizon_offset_map = {"15min": 1, "30min": 2, "45min": 3, "60min": 4}
+                else:
+                    # 5-min interval datasets (e.g. PeMS, METR-LA)
+                    horizon_offset_map = {"15min": 3, "30min": 6, "45min": 9, "60min": 12}
+
+                offset = horizon_offset_map.get(horizon.lower(), 1 if raw_data.shape[0] < 5000 else 3)
                 eval_step = min(target_step + offset, raw_data.shape[0] - 1)
 
                 num_nodes_in_data = raw_data.shape[1]
                 for node in self.graph.nodes():
                     if node < num_nodes_in_data:
-                        # Channel 2 is speed (mph)
-                        base_spd = float(raw_data[eval_step, node, 2])
+                        if raw_data.ndim == 3:
+                            spd_idx = 2 if raw_data.shape[2] >= 3 else 0
+                            base_spd = float(raw_data[eval_step, node, spd_idx])
+                        elif raw_data.ndim == 2:
+                            base_spd = float(raw_data[eval_step, node])
+                        else:
+                            base_spd = 50.0
                     else:
-                        base_spd = 55.0
+                        base_spd = 50.0
                     speeds[node] = max(self.MIN_SPEED_MPH, base_spd)
             except Exception as e:
                 logger.warning(f"Could not read speed from npz ({e}), using default baseline.")
                 for node in self.graph.nodes():
-                    speeds[node] = 58.0
+                    speeds[node] = 50.0
         else:
             for node in self.graph.nodes():
-                speeds[node] = 58.0
+                speeds[node] = 50.0
 
         # Inject user-defined bottlenecks (e.g., accidents, construction)
         if synthetic_bottlenecks:

@@ -35,14 +35,16 @@ import altair as alt
 # ── Import project modules ────────────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from inference_evaluator import ForecastParser, ParsedForecast
-from prompt_engineer import (
-    DATASET_REGISTRY,
-    FedLLMPromptBuilder,
-    TemporalContextEngine,
-)
 from data_loader import (
+    DATASET_ALIASES,
+    DATASET_REGISTRY,
+    DatasetConfig,
     SpatialGraphProcessor,
     TrafficDataDownloader,
+)
+from prompt_engineer import (
+    FedLLMPromptBuilder,
+    TemporalContextEngine,
 )
 from route_optimizer import FedLLMRouteOptimizer, RouteResult
 
@@ -51,29 +53,129 @@ from route_optimizer import FedLLMRouteOptimizer, RouteResult
 # 1. Dataset Metadata & Registry
 # =============================================================================
 
-STEPS_PER_DAY = 288
-INTERVAL_MIN = 5
-
 DATASET_METADATA: Dict[str, Dict[str, Any]] = {
     "PEMS04": {
         "name": "PEMS04",
+        "num_nodes": 307,
         "region": "SF Bay Area (District 4)",
         "full_region": "California District 4 — San Francisco Bay Area (I-80, US-101, I-280, I-880)",
         "base_date": datetime(2018, 1, 1, 0, 0),
         "default_date": date(2018, 2, 5),
         "default_time": time(8, 0),
+        "interval_min": 5,
+        "speed_unit": "mph",
+        "flow_unit": "veh/5min",
         "description": "307 loop detectors across the San Francisco Bay Area urban freeway network.",
     },
     "PEMS08": {
         "name": "PEMS08",
+        "num_nodes": 170,
         "region": "San Bernardino (District 8)",
         "full_region": "California District 8 — San Bernardino / Inland Empire (I-10, I-15, SR-60, SR-91)",
         "base_date": datetime(2016, 7, 1, 0, 0),
         "default_date": date(2016, 7, 18),
         "default_time": time(8, 0),
+        "interval_min": 5,
+        "speed_unit": "mph",
+        "flow_unit": "veh/5min",
         "description": "170 loop detectors along Southern California freight and logistics corridors.",
     },
+    "SZ-TAXI": {
+        "name": "SZ-TAXI",
+        "num_nodes": 156,
+        "region": "Shenzhen (Luohu District)",
+        "full_region": "Shenzhen Luohu District Asian Megacity Road Grid (156 arterial segments)",
+        "base_date": datetime(2015, 1, 1, 0, 0),
+        "default_date": date(2015, 1, 15),
+        "default_time": time(8, 0),
+        "interval_min": 15,
+        "speed_unit": "km/h",
+        "flow_unit": "veh/15min",
+        "description": "156 arterial road segments across Shenzhen's high-density central commercial corridor.",
+    },
+    "PORTO": {
+        "name": "PORTO",
+        "num_nodes": 120,
+        "region": "Porto Metropolitan Grid",
+        "full_region": "Porto European Historic Urban Network (120 arterial sensor nodes)",
+        "base_date": datetime(2013, 7, 1, 0, 0),
+        "default_date": date(2013, 7, 15),
+        "default_time": time(8, 0),
+        "interval_min": 15,
+        "speed_unit": "km/h",
+        "flow_unit": "veh/15min",
+        "description": "120 sensor stations across Porto's historic radial corridors and roundabout grid.",
+    },
+    "METR-LA": {
+        "name": "METR-LA",
+        "num_nodes": 207,
+        "region": "Los Angeles (LA County Highways)",
+        "full_region": "Los Angeles County Highway Network (207 loop detectors)",
+        "base_date": datetime(2012, 3, 1, 0, 0),
+        "default_date": date(2012, 4, 15),
+        "default_time": time(8, 0),
+        "interval_min": 5,
+        "speed_unit": "mph",
+        "flow_unit": "veh/5min",
+        "description": "207 loop detector sensors across Los Angeles County highways.",
+    },
 }
+
+# ── Explicit In-Memory Registration for Streamlit Hot-Reloading ───────────────
+if "SZ-TAXI" not in DATASET_REGISTRY:
+    DATASET_REGISTRY["SZ-TAXI"] = DatasetConfig(
+        name="SZ-taxi",
+        num_nodes=156,
+        num_features=3,
+        feature_names=["traffic_flow", "occupancy", "average_speed"],
+        time_interval_minutes=15,
+        primary_data_file="sz_taxi.npz",
+        distance_file="distance.csv",
+        download_urls={
+            "sz_taxi.npz": [
+                "https://raw.githubusercontent.com/lehaifeng/T-GCN/master/T-GCN/T-GCN-PyTorch/data/sz_speed.csv",
+            ],
+            "distance.csv": [
+                "https://raw.githubusercontent.com/lehaifeng/T-GCN/master/T-GCN/T-GCN-PyTorch/data/sz_adj.csv",
+            ],
+        },
+        description="Shenzhen Luohu District Asian Megacity Road Grid with 156 road segments (Jan 2015).",
+    )
+
+if "PORTO" not in DATASET_REGISTRY:
+    DATASET_REGISTRY["PORTO"] = DatasetConfig(
+        name="Porto",
+        num_nodes=120,
+        num_features=3,
+        feature_names=["traffic_flow", "occupancy", "average_speed"],
+        time_interval_minutes=15,
+        primary_data_file="porto.npz",
+        distance_file="distance.csv",
+        download_urls={},
+        description="Porto European Historic Urban Network with 120 sensor stations (July 2013).",
+    )
+
+if "METR-LA" not in DATASET_REGISTRY:
+    DATASET_REGISTRY["METR-LA"] = DatasetConfig(
+        name="METR-LA",
+        num_nodes=207,
+        num_features=1,
+        feature_names=["average_speed"],
+        time_interval_minutes=5,
+        primary_data_file="metr-la.npz",
+        distance_file="distance.csv",
+        download_urls={},
+        description="Los Angeles County highway network with 207 loop detectors (Mar-Jun 2012).",
+    )
+
+DATASET_ALIASES.update({
+    "sz-taxi": "SZ-TAXI",
+    "sz_taxi": "SZ-TAXI",
+    "sztaxi": "SZ-TAXI",
+    "sz": "SZ-TAXI",
+    "porto": "PORTO",
+    "portugal": "PORTO",
+})
 
 
 # =============================================================================
@@ -83,12 +185,45 @@ DATASET_METADATA: Dict[str, Dict[str, Any]] = {
 @st.cache_resource(show_spinner="Loading freeway telemetry matrix...")
 def load_raw_data(dataset_name: str):
     """Load the raw .npz telemetry tensor and adjacency matrix for the given dataset."""
-    cfg = DATASET_REGISTRY[dataset_name]
-    meta = DATASET_METADATA[dataset_name]
+    canonical = DATASET_ALIASES.get(dataset_name.lower(), dataset_name.upper())
+    cfg = DATASET_REGISTRY.get(dataset_name) or DATASET_REGISTRY.get(canonical)
+
+    if cfg is None:
+        meta = DATASET_METADATA.get(dataset_name) or DATASET_METADATA.get(canonical, {})
+        cfg = DatasetConfig(
+            name="SZ-taxi" if "SZ" in dataset_name.upper() else ("Porto" if "PORTO" in dataset_name.upper() else dataset_name),
+            num_nodes=meta.get("num_nodes", 156 if "SZ" in dataset_name.upper() else (120 if "PORTO" in dataset_name.upper() else 207)),
+            num_features=3 if dataset_name != "METR-LA" else 1,
+            feature_names=["traffic_flow", "occupancy", "average_speed"] if dataset_name != "METR-LA" else ["average_speed"],
+            time_interval_minutes=meta.get("interval_min", 15),
+            primary_data_file=f"{dataset_name.lower().replace('-', '_')}.npz",
+            distance_file="distance.csv",
+            download_urls={},
+            description=meta.get("description", ""),
+        )
+        DATASET_REGISTRY[dataset_name] = cfg
+        DATASET_REGISTRY[canonical] = cfg
+
+    meta = DATASET_METADATA.get(dataset_name) or DATASET_METADATA.get(canonical)
     base_date = meta["base_date"]
+    interval_min = meta.get("interval_min", cfg.time_interval_minutes)
+    steps_per_day = int(1440 / interval_min)
 
     downloader = TrafficDataDownloader(data_dir="./data")
-    data_path, dist_path = downloader.ensure_dataset(cfg.name)
+    try:
+        data_path, dist_path = downloader.ensure_dataset(cfg.name)
+    except Exception as e:
+        folder_candidates = [cfg.name, dataset_name, canonical, "SZ-taxi", "Porto", "METR-LA"]
+        resolved_dir = None
+        for fc in folder_candidates:
+            p = os.path.join(downloader.data_dir, fc)
+            if os.path.exists(p):
+                resolved_dir = p
+                break
+        if resolved_dir is None:
+            resolved_dir = os.path.join(downloader.data_dir, cfg.name)
+        data_path = os.path.join(resolved_dir, cfg.primary_data_file)
+        dist_path = os.path.join(resolved_dir, cfg.distance_file)
 
     # Load raw tensor
     raw_npz = np.load(data_path)
@@ -103,12 +238,12 @@ def load_raw_data(dataset_name: str):
     # Compute diurnal baselines from first 70% (train split)
     train_end = int(raw_data.shape[0] * 0.7)
     temporal_engine = TemporalContextEngine(
-        steps_per_day=STEPS_PER_DAY,
-        interval_minutes=INTERVAL_MIN,
+        steps_per_day=steps_per_day,
+        interval_minutes=interval_min,
         base_date=base_date,
     )
     diurnal_baselines = TemporalContextEngine.compute_diurnal_baselines(
-        raw_data[:train_end], steps_per_day=STEPS_PER_DAY
+        raw_data[:train_end], steps_per_day=steps_per_day
     )
 
     # Build prompt builder
@@ -129,21 +264,21 @@ def load_route_optimizer(dataset_name: str) -> FedLLMRouteOptimizer:
     return FedLLMRouteOptimizer(dataset_name=dataset_name, data_dir="./data")
 
 
-def datetime_to_step(dt: datetime, base_date: datetime) -> int:
+def datetime_to_step(dt: datetime, base_date: datetime, interval_min: int = 5) -> int:
     """Convert a datetime to a dataset time step index."""
     delta = dt - base_date
-    return int(delta.total_seconds() / (INTERVAL_MIN * 60))
+    return int(delta.total_seconds() / (interval_min * 60))
 
 
-def step_to_datetime(step: int, base_date: datetime) -> datetime:
+def step_to_datetime(step: int, base_date: datetime, interval_min: int = 5) -> datetime:
     """Convert a time step index back to a datetime."""
-    return base_date + timedelta(minutes=step * INTERVAL_MIN)
+    return base_date + timedelta(minutes=step * interval_min)
 
 
-def get_dataset_date_range(total_steps: int, base_date: datetime) -> Tuple[date, date]:
+def get_dataset_date_range(total_steps: int, base_date: datetime, interval_min: int = 5) -> Tuple[date, date]:
     """Returns the valid date range for the dataset."""
-    min_dt = step_to_datetime(12, base_date)
-    max_dt = step_to_datetime(total_steps - 13, base_date)
+    min_dt = step_to_datetime(12, base_date, interval_min)
+    max_dt = step_to_datetime(total_steps - 13, base_date, interval_min)
     return min_dt.date(), max_dt.date()
 
 
@@ -181,10 +316,10 @@ def extract_input_sections(input_text: str) -> Dict[str, str]:
 def extract_current_values(input_text: str) -> Dict[str, Optional[float]]:
     """Extracts current flow and speed from the Demand Statistics section."""
     result: Dict[str, Optional[float]] = {"flow": None, "speed": None}
-    m_flow = re.search(r"Current Flow:\s*([\d.]+)\s*veh/5min", input_text)
+    m_flow = re.search(r"Current Flow:\s*([\d.]+)", input_text)
     if m_flow:
         result["flow"] = float(m_flow.group(1))
-    m_speed = re.search(r"Current Speed:\s*([\d.]+)\s*mph", input_text)
+    m_speed = re.search(r"Current Speed:\s*([\d.]+)", input_text)
     if m_speed:
         result["speed"] = float(m_speed.group(1))
     return result
@@ -329,10 +464,10 @@ with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/traffic-jam.png", width=64)
     st.markdown("### 📡 Benchmark Selection")
 
-    # ── Dataset Selector (PeMS04 vs PeMS08) ───────────────────────────────────
+    # ── Dataset Selector ───────────────────────────────────────────────────────
     selected_dataset = st.selectbox(
         "🛣️ Select Freeway Network",
-        options=["PEMS04", "PEMS08"],
+        options=list(DATASET_METADATA.keys()),
         format_func=lambda x: f"{x} — {DATASET_METADATA[x]['region']}",
         index=0,
     )
@@ -348,7 +483,10 @@ raw_data, adj_matrix, prompt_builder, cfg, meta = load_raw_data(selected_dataset
 total_steps = raw_data.shape[0]
 num_sensors = raw_data.shape[1]
 base_date = meta["base_date"]
-min_date, max_date = get_dataset_date_range(total_steps, base_date)
+interval_min = meta.get("interval_min", cfg.time_interval_minutes)
+speed_unit = meta.get("speed_unit", "mph")
+flow_unit = meta.get("flow_unit", "veh/5min")
+min_date, max_date = get_dataset_date_range(total_steps, base_date, interval_min)
 
 
 # =============================================================================
@@ -372,21 +510,21 @@ with st.sidebar:
     selected_time = st.time_input(
         "🕐 Observation Time",
         value=meta["default_time"],
-        step=timedelta(minutes=5),
+        step=timedelta(minutes=interval_min),
         key=f"time_picker_{selected_dataset}",
-        help="5-minute intervals matching PeMS loop detector sampling",
+        help=f"{interval_min}-minute intervals matching {selected_dataset} sensor sampling",
     )
 
-    # Snap to 5-minute grid
-    snapped_minute = (selected_time.minute // 5) * 5
+    # Snap to dataset interval grid
+    snapped_minute = (selected_time.minute // interval_min) * interval_min
     selected_dt = datetime.combine(selected_date, time(selected_time.hour, snapped_minute))
 
     # Compute step index
-    step_idx = datetime_to_step(selected_dt, base_date)
+    step_idx = datetime_to_step(selected_dt, base_date, interval_min)
     step_valid = 12 <= step_idx <= (total_steps - 13)
 
     if not step_valid:
-        st.error("Selected date/time is outside the valid range.")
+        st.error(f"Selected date/time ({selected_dt.strftime('%Y-%m-%d %H:%M')}) is outside the valid range.")
         st.stop()
 
     # Display resolved timestamp
@@ -405,7 +543,7 @@ with st.sidebar:
         value=0,
         step=1,
         key=f"sensor_picker_{selected_dataset}",
-        help=f"Choose from {num_sensors} loop detector stations along {meta['region']}",
+        help=f"Choose from {num_sensors} sensor stations along {meta['region']}",
     )
 
     st.markdown("---")
@@ -413,6 +551,7 @@ with st.sidebar:
     st.caption(f"**Dataset:** {selected_dataset}")
     st.caption(f"**Corridor:** {meta['full_region']}")
     st.caption(f"**Sensors:** {num_sensors} stations")
+    st.caption(f"**Sampling:** Every {interval_min} minutes")
     st.caption(f"**Model:** Qwen2.5-1.5B + FedCSS LoRA")
     st.caption(f"**Aggregation:** FedCSS (α=β=γ=δ=0.25)")
 
@@ -548,21 +687,21 @@ with col_output:
         st.markdown("##### ⏱️ 15-Minute Horizon")
         a1, a2, a3 = st.columns(3)
         with a1:
-            st.metric("🟢 Actual Flow", f"{gt.f15:.1f}" if gt.f15 else "N/A")
+            st.metric("🟢 Actual Flow", f"{gt.f15:.1f} {flow_unit}" if gt.f15 else "N/A")
         with a2:
-            st.metric("🔵 Predicted Flow", f"{pred.f15:.1f}" if pred.f15 else "N/A")
+            st.metric("🔵 Predicted Flow", f"{pred.f15:.1f} {flow_unit}" if pred.f15 else "N/A")
         with a3:
             err = abs(gt.f15 - pred.f15) if (gt.f15 and pred.f15) else 0
-            st.metric("Δ Error", f"{err:.1f} veh", delta=f"{pred.f15 - gt.f15:+.1f}" if (gt.f15 and pred.f15) else None)
+            st.metric("Δ Error", f"{err:.1f} {flow_unit}", delta=f"{pred.f15 - gt.f15:+.1f}" if (gt.f15 and pred.f15) else None)
 
         b1, b2, b3 = st.columns(3)
         with b1:
-            st.metric("🟢 Actual Speed", f"{gt.s15:.1f} mph" if gt.s15 else "N/A")
+            st.metric("🟢 Actual Speed", f"{gt.s15:.1f} {speed_unit}" if gt.s15 else "N/A")
         with b2:
-            st.metric("🔵 Predicted Speed", f"{pred.s15:.1f} mph" if pred.s15 else "N/A")
+            st.metric("🔵 Predicted Speed", f"{pred.s15:.1f} {speed_unit}" if pred.s15 else "N/A")
         with b3:
             err_s = abs(gt.s15 - pred.s15) if (gt.s15 and pred.s15) else 0
-            st.metric("Δ Error", f"{err_s:.1f} mph", delta=f"{pred.s15 - gt.s15:+.1f}" if (gt.s15 and pred.s15) else None, delta_color="inverse")
+            st.metric("Δ Error", f"{err_s:.1f} {speed_unit}", delta=f"{pred.s15 - gt.s15:+.1f}" if (gt.s15 and pred.s15) else None, delta_color="inverse")
 
         st.markdown("---")
 
@@ -570,21 +709,21 @@ with col_output:
         st.markdown("##### ⏱️ 60-Minute Horizon")
         c1, c2, c3 = st.columns(3)
         with c1:
-            st.metric("🟢 Actual Flow", f"{gt.f60:.1f}" if gt.f60 else "N/A")
+            st.metric("🟢 Actual Flow", f"{gt.f60:.1f} {flow_unit}" if gt.f60 else "N/A")
         with c2:
-            st.metric("🔵 Predicted Flow", f"{pred.f60:.1f}" if pred.f60 else "N/A")
+            st.metric("🔵 Predicted Flow", f"{pred.f60:.1f} {flow_unit}" if pred.f60 else "N/A")
         with c3:
             err60 = abs(gt.f60 - pred.f60) if (gt.f60 and pred.f60) else 0
-            st.metric("Δ Error", f"{err60:.1f} veh", delta=f"{pred.f60 - gt.f60:+.1f}" if (gt.f60 and pred.f60) else None)
+            st.metric("Δ Error", f"{err60:.1f} {flow_unit}", delta=f"{pred.f60 - gt.f60:+.1f}" if (gt.f60 and pred.f60) else None)
 
         d1, d2, d3 = st.columns(3)
         with d1:
-            st.metric("🟢 Actual Speed", f"{gt.s60:.1f} mph" if gt.s60 else "N/A")
+            st.metric("🟢 Actual Speed", f"{gt.s60:.1f} {speed_unit}" if gt.s60 else "N/A")
         with d2:
-            st.metric("🔵 Predicted Speed", f"{pred.s60:.1f} mph" if pred.s60 else "N/A")
+            st.metric("🔵 Predicted Speed", f"{pred.s60:.1f} {speed_unit}" if pred.s60 else "N/A")
         with d3:
             err_s60 = abs(gt.s60 - pred.s60) if (gt.s60 and pred.s60) else 0
-            st.metric("Δ Error", f"{err_s60:.1f} mph", delta=f"{pred.s60 - gt.s60:+.1f}" if (gt.s60 and pred.s60) else None, delta_color="inverse")
+            st.metric("Δ Error", f"{err_s60:.1f} {speed_unit}", delta=f"{pred.s60 - gt.s60:+.1f}" if (gt.s60 and pred.s60) else None, delta_color="inverse")
 
         st.markdown("---")
 
@@ -648,14 +787,14 @@ with col_output:
                 .properties(height=330)
             )
 
-        chart_tab1, chart_tab2 = st.tabs(["🚗 Traffic Flow (veh/5min)", "⚡ Speed (mph)"])
+        chart_tab1, chart_tab2 = st.tabs([f"🚗 Traffic Flow ({flow_unit})", f"⚡ Speed ({speed_unit})"])
 
         with chart_tab1:
-            flow_chart = build_horizontal_chart(horizons, actual_flow, pred_flow, "Traffic Flow", "veh/5min")
+            flow_chart = build_horizontal_chart(horizons, actual_flow, pred_flow, "Traffic Flow", flow_unit)
             st.altair_chart(flow_chart, use_container_width=True)
 
         with chart_tab2:
-            speed_chart = build_horizontal_chart(horizons, actual_speed, pred_speed, "Traffic Speed", "mph")
+            speed_chart = build_horizontal_chart(horizons, actual_speed, pred_speed, "Traffic Speed", speed_unit)
             st.altair_chart(speed_chart, use_container_width=True)
 
         st.caption("🟢 Green = Actual (Ground Truth)  &nbsp;&nbsp; 🔵 Blue = FedLLM Predicted")
@@ -798,7 +937,7 @@ if route_btn or st.session_state.get(f"route_done_{selected_dataset}"):
 <h4>🔵 FedLLM Dynamic Route (Fastest)</h4>
 <b>Travel Time:</b> {dyn_route.total_time_minutes:.1f} minutes
 <b>Distance:</b> {dyn_route.total_distance_miles:.2f} miles
-<b>Avg Speed:</b> {dyn_route.average_speed_mph:.1f} mph
+<b>Avg Speed:</b> {dyn_route.average_speed_mph:.1f} {speed_unit}
 <b>Hops:</b> {len(dyn_route.path) - 1} corridor segments
 <b>Path:</b> {' ➔ '.join(f'#{n:03d}' for n in dyn_route.path)}
 </div>
@@ -810,7 +949,7 @@ if route_btn or st.session_state.get(f"route_done_{selected_dataset}"):
 <h4>⬜ Static Distance-Only Route (Baseline)</h4>
 <b>Travel Time:</b> {stat_route.total_time_minutes:.1f} minutes
 <b>Distance:</b> {stat_route.total_distance_miles:.2f} miles
-<b>Avg Speed:</b> {stat_route.average_speed_mph:.1f} mph
+<b>Avg Speed:</b> {stat_route.average_speed_mph:.1f} {speed_unit}
 <b>Hops:</b> {len(stat_route.path) - 1} corridor segments
 <b>Path:</b> {' ➔ '.join(f'#{n:03d}' for n in stat_route.path)}
 </div>
@@ -844,12 +983,12 @@ if route_btn or st.session_state.get(f"route_done_{selected_dataset}"):
             with sm3:
                 st.metric(
                     "🚀 Dynamic Speed",
-                    f"{dyn_route.average_speed_mph:.1f} mph",
+                    f"{dyn_route.average_speed_mph:.1f} {speed_unit}",
                 )
             with sm4:
                 st.metric(
                     "🐢 Static Speed",
-                    f"{stat_route.average_speed_mph:.1f} mph",
+                    f"{stat_route.average_speed_mph:.1f} {speed_unit}",
                 )
 
             st.markdown("---")
@@ -871,7 +1010,7 @@ if route_btn or st.session_state.get(f"route_done_{selected_dataset}"):
                         "Leg": f"#{idx}",
                         "From → To": f"#{seg.from_node:03d} ➔ #{seg.to_node:03d}",
                         "Distance (mi)": round(seg.distance_miles, 2),
-                        "Speed (mph)": round(seg.predicted_speed_mph, 1),
+                        f"Speed ({speed_unit})": round(seg.predicted_speed_mph, 1),
                         "Time (min)": round(seg.travel_time_minutes, 1),
                         "Regime": regime_str,
                     })
